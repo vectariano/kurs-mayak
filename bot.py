@@ -7,9 +7,11 @@ from uuid import UUID
 from aiogram import Bot, Dispatcher
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from infrastructure.db.pair_catalog import list_enabled_pairs
 from infrastructure.db.session_repository import PostgresSessionRepository
 from ports import SessionRepository
 from telegram_menu import create_menu_router
+from telegram_pair_selection import create_pair_selection_router
 
 
 def create_dispatcher(sessions: async_sessionmaker) -> Dispatcher:
@@ -22,7 +24,12 @@ def create_dispatcher(sessions: async_sessionmaker) -> Dispatcher:
             user_id = await repository.get_user_id(telegram_user_id, chat_id, create=create)
             yield user_id, repository
 
+    async def load_pairs():
+        async with sessions() as session:
+            return await list_enabled_pairs(session)
+
     dispatcher = Dispatcher()
+    dispatcher.include_router(create_pair_selection_router(open_dialog, load_pairs))
     dispatcher.include_router(create_menu_router(open_dialog))
     return dispatcher
 
